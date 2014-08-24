@@ -1,0 +1,67 @@
+---
+title: "Practical Machine Learning - Course Project Writeup"
+output: html_document
+---
+
+```{r}
+library(caret)
+set.seed(12345)
+```
+
+The goal of this project is to create a machine learning model which predicts the way in which a subject performed an excercise based on a variety of measurements of the subject's activity. The model created will be used to predict the activity quality for 20 test cases.
+
+First, we read the training data:
+
+```{r, cache=TRUE}
+training <- read.csv("pml-training.csv")
+```
+
+Looking at a summary of the data, we see that there are several variables which appear to be calculated variables. Because they are missing values for most rows, they will not be good predictors and we can discard them. In addition, we discard the row number (X), the user_name and the time-related information. In this case, the time the excercise was performed is not relevant to predicting the method in which the execise was performed.
+
+```{r}
+training <- training[, -grep("max_", names(training))]
+training <- training[, -grep("min_", names(training))]
+training <- training[, -grep("amplitude_", names(training))]
+training <- training[, -grep("avg_", names(training))]
+training <- training[, -grep("var_", names(training))]
+training <- training[, -grep("stddev_", names(training))]
+training <- training[, -grep("skewness_", names(training))]
+training <- training[, -grep("kurtosis_", names(training))]
+training <- training[, -grep("X", names(training))]
+training <- training[, -grep("user_name", names(training))]
+training <- training[, -grep("timestamp", names(training))]
+training <- training[, -grep("window", names(training))]
+```
+
+After experimenting with various prediction methods, random forest prediction seems to perform quite well. We use all remaining variables to predict the `classe` variable. We also use the `trainControl()` function to specify that we want to use cross-validation 10 times and use 60% of the data as the training set in each validation.
+
+```{r, cache=TRUE}
+trControl <- trainControl(method="cv", number=10, p=0.6, allowParallel=TRUE)
+modFit <- train(classe~., data=training, method="rf", trControl=trControl)
+```
+
+Examining the final model produced by the `train()` function shows what we can expect for our out of sample error (the "OOB estimate of error rate"):
+
+```{r}
+modFit$finalModel
+```
+
+We then load the test set, apply the same transformations that we applied to the training set, and use our model to predict the activity quality for each of the 20 cases.
+
+```{r}
+testing <- read.csv("pml-testing.csv")
+testing <- testing[, -grep("max_", names(testing))]
+testing <- testing[, -grep("min_", names(testing))]
+testing <- testing[, -grep("amplitude_", names(testing))]
+testing <- testing[, -grep("avg_", names(testing))]
+testing <- testing[, -grep("var_", names(testing))]
+testing <- testing[, -grep("stddev_", names(testing))]
+testing <- testing[, -grep("skewness_", names(testing))]
+testing <- testing[, -grep("kurtosis_", names(testing))]
+testing <- testing[, -grep("X", names(testing))]
+testing <- testing[, -grep("user_name", names(testing))]
+testing <- testing[, -grep("timestamp", names(testing))]
+testing <- testing[, -grep("window", names(testing))]
+predictions <- predict(modFit, newdata=testing)
+data.frame(problem_id=testing$problem_id, prediction=predictions)
+```
